@@ -1,0 +1,8 @@
+{
+  "object_id": "fridge",
+  "category": "fridge",
+  "size": [0.7, 0.7, 1.8],
+  "position": [0.0, 0.0, 0.0],
+  "attributes": ["appliance"],
+  "vertical_relation": {}
+} 
