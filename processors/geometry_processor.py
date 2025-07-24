@@ -13,17 +13,17 @@ def generate_grid_map_from_objects(map_rep: MapRepresentation, resolution: float
     if map_rep.canvas_size is None:
         raise ValueError("Map canvas_size未设置，无法生成grid map")
     width, height = map_rep.canvas_size
-    grid_w = int(np.ceil(width / resolution))
-    grid_h = int(np.ceil(height / resolution))
-    grid_map = np.ones((grid_w, grid_h), dtype=np.uint8)
+    grid_w = int(round(width / resolution))
+    grid_h = int(round(height / resolution))
+    grid_map = np.ones((grid_h, grid_w), dtype=np.uint8)  # shape=(行,列)=(y,x)
     # 用2D bbox判断障碍
     for obj in map_rep.objects.values():
         if hasattr(obj, 'bbox_2d'):
             min_x, min_y, max_x, max_y = obj.bbox_2d
-            for i in range(grid_w):
-                for j in range(grid_h):
-                    x = (i + 0.5) * resolution
-                    y = (j + 0.5) * resolution
-                    if (min_x <= x <= max_x) and (min_y <= y <= max_y):
-                        grid_map[i, j] = 0
+            for row in range(grid_h):  # y方向
+                for col in range(grid_w):  # x方向
+                    x = col * resolution  # 左下角
+                    y = row * resolution
+                    if (min_x <= x < max_x) and (min_y <= y < max_y):
+                        grid_map[row, col] = 0  # row是y，col是x
     return grid_map

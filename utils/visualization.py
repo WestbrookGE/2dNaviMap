@@ -15,11 +15,35 @@ def plot_map(map_rep: MapRepresentation, agent_state: AgentState = None, show_gr
     # 1. 绘制栅格地图
     if map_rep.grid_map is not None and show_grid:
         grid = map_rep.grid_map
-        ax.imshow(grid.T, origin='lower', cmap='Greys', alpha=0.3, extent=[0, grid.shape[0], 0, grid.shape[1]])
+        ax.imshow(
+            grid,  # 不再转置
+            origin='lower',
+            cmap='Greys',
+            alpha=0.3,
+            extent=[0, map_rep.canvas_size[0], 0, map_rep.canvas_size[1]],
+            interpolation='nearest',
+            aspect='auto'  # 保证拉伸到整个画布
+        )
+        ax.set_xlim(0, map_rep.canvas_size[0])
+        ax.set_ylim(0, map_rep.canvas_size[1])
+    else:
+        if hasattr(map_rep, "canvas_size") and map_rep.canvas_size is not None:
+            ax.set_xlim(0, map_rep.canvas_size[0])
+            ax.set_ylim(0, map_rep.canvas_size[1])
+
+    # ====== 辅助点：画出左下角和右上角，调试坐标系 ======
+    ax.plot(0, 0, 'ro', label='origin (0,0)')
+    ax.plot(map_rep.canvas_size[0], map_rep.canvas_size[1], 'go', label='max')
+    # =============================================
 
     # 2. 绘制所有物体的2D bbox
     for obj in map_rep.objects.values():
-        if hasattr(obj, 'bbox_2d'):
+        if getattr(obj, 'category', None) == 'path' and hasattr(obj, 'footprint_2d'):
+            # 绘制轨迹线
+            pts = np.array(obj.footprint_2d)
+            if len(pts) > 1:
+                ax.plot(pts[:,0], pts[:,1], '-o', label=obj.category+":"+obj.object_id)
+        elif hasattr(obj, 'bbox_2d'):
             min_x, min_y, max_x, max_y = obj.bbox_2d
             rect = plt.Rectangle((min_x, min_y), max_x - min_x, max_y - min_y, alpha=0.4, label=obj.category+":"+obj.object_id)
             ax.add_patch(rect)
@@ -37,11 +61,6 @@ def plot_map(map_rep: MapRepresentation, agent_state: AgentState = None, show_gr
         dy = 0.5 * np.sin(agent_state.orientation)
         ax.arrow(centroid[0], centroid[1], dx, dy, head_width=0.2, head_length=0.2, fc='r', ec='r')
         ax.text(centroid[0], centroid[1], 'Agent', fontsize=10, color='blue', ha='left', va='bottom')
-
-    # 强制坐标轴范围与画布一致
-    if hasattr(map_rep, "canvas_size") and map_rep.canvas_size is not None:
-        ax.set_xlim(0, map_rep.canvas_size[0])
-        ax.set_ylim(0, map_rep.canvas_size[1])
 
     ax.set_aspect('equal')
     ax.set_xlabel('X')
