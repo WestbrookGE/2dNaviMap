@@ -1,15 +1,19 @@
 import numpy as np
 from core.data_structures import MapRepresentation
+from utils.config import config
 from typing import Tuple
 
-def generate_grid_map_from_objects(map_rep: MapRepresentation, resolution: float = 1.0) -> np.ndarray:
+def generate_grid_map_from_objects(map_rep: MapRepresentation, resolution: float = None) -> np.ndarray:
     """
     根据地图物体自动生成可通行grid map。
     障碍物区域为0，可通行区域为1。
     :param map_rep: MapRepresentation对象
-    :param resolution: 每个grid的实际长度
+    :param resolution: 每个grid的实际长度，如果为None则使用配置值
     :return: grid map (numpy array)
     """
+    if resolution is None:
+        resolution = config.get_default_resolution()
+    
     if map_rep.canvas_size is None:
         raise ValueError("Map canvas_size未设置，无法生成grid map")
     width, height = map_rep.canvas_size

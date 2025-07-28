@@ -1,8 +1,5 @@
 {
-  "object_id": "table",
-  "category": "table",
+  "label": "table",
   "size": [1.2, 0.7, 0.75],
-  "position": [0.0, 0.0, 0.0],
-  "attributes": ["furniture"],
-  "vertical_relation": {}
+  "position": [0.0, 0.0, 0.0]
 } 

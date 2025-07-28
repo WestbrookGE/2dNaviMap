@@ -1,0 +1,28 @@
+# 2D导航地图配置文件
+
+# 网格地图配置
+grid_map:
+  resolution: 0.1  # 网格分辨率（米/格子）
+  default_resolution: 1.0  # 默认分辨率
+
+# 碰撞检测配置
+collision:
+  margin: 0.3  # 碰撞边缘距离（米）
+  margins: [0.0, 0.2, 0.3]  # 多种碰撞边缘选项
+
+# 路径规划配置
+pathfinding:
+  max_search_radius: 2.0  # 最大搜索半径（米）
+  sample_step: 0.05  # 路径采样步长（米）
+
+# 地图配置
+map:
+  default_canvas_size: [15.0, 12.0]  # 默认画布大小（米）
+
+# 可视化配置
+visualization:
+  alpha: 0.3  # 透明度
+
+# 对象配置
+objects:
+  default_size: [0.3, 0.3, 0.6]  # 默认对象尺寸 

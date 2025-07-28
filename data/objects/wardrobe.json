@@ -1,8 +1,5 @@
 {
-  "object_id": "wardrobe",
-  "category": "wardrobe",
+  "label": "wardrobe",
   "size": [1.5, 0.6, 2.0],
-  "position": [0.0, 0.0, 0.0],
-  "attributes": ["furniture"],
-  "vertical_relation": {}
+  "position": [0.0, 0.0, 0.0]
 } 

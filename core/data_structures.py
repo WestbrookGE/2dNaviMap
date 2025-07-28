@@ -12,17 +12,16 @@ class SourceType(Enum):
 class MapObject:
     def __init__(
         self,
-        object_id: str,
-        category: str,
+        label: str,
         size: Tuple[float, float, float],  # 长宽高，必要属性
         position: Tuple[float, float, float] = (0.0, 0.0, 0.0),  # 左下底角位置，必要属性
-        attributes: Optional[List[str]] = None,
-        vertical_relation: Optional[Dict[str, Any]] = None,
+        id: Optional[str] = None,
     ):
-        self.object_id = object_id
-        self.category = category
+        self.label = label
         self.size = size
         self.position = position
+        # 如果没有提供id，使用label_0格式
+        self.id = id or f"{label}_0"
         x, y, z = position
         w, d, h = size
         self.source_bbox_3d = (
@@ -31,31 +30,25 @@ class MapObject:
         )
         self.source_centroid_3d = (x + w/2, y + d/2, z + h/2)
         self.bbox_2d = (x, y, x + w, y + d)  # 新增2D bbox
-        self.attributes = attributes or []
-        self.vertical_relation = vertical_relation or {}
 
     def to_dict(self) -> dict:
         return {
-            "object_id": self.object_id,
-            "category": self.category,
+            "label": self.label,
             "size": self.size,
             "position": self.position,
+            "id": self.id,
             "source_bbox_3d": self.source_bbox_3d,
             "source_centroid_3d": self.source_centroid_3d,
             "bbox_2d": self.bbox_2d,
-            "attributes": self.attributes,
-            "vertical_relation": self.vertical_relation,
         }
 
     @staticmethod
     def from_dict(data: dict) -> "MapObject":
         obj = MapObject(
-            object_id=data["object_id"],
-            category=data["category"],
+            label=data["label"],
             size=tuple(data["size"]),
             position=tuple(data.get("position", (0.0, 0.0, 0.0))),
-            attributes=data.get("attributes", []),
-            vertical_relation=data.get("vertical_relation", {}),
+            id=data.get("id"),
         )
         # 兼容老数据
         if "bbox_2d" in data:
@@ -156,6 +149,29 @@ class MapRepresentation:
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
         return MapRepresentation.from_dict(data)
+    
+    def save_to_json(self, path: str) -> str:
+        """
+        保存地图到JSON文件
+        
+        Args:
+            path: 保存路径
+            
+        Returns:
+            保存文件的绝对路径
+        """
+        import os
+        from pathlib import Path
+        
+        # 确保目录存在
+        save_path = Path(path)
+        save_path.parent.mkdir(parents=True, exist_ok=True)
+        
+        # 保存到文件
+        with open(save_path, "w", encoding="utf-8") as f:
+            json.dump(self.to_dict(), f, ensure_ascii=False, indent=2)
+            
+        return str(save_path.absolute())
 
 class Path:
     def __init__(self, points: List[Tuple[float, float]]):

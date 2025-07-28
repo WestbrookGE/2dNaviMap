@@ -1,8 +1,5 @@
 {
-  "object_id": "bed",
-  "category": "bed",
+  "label": "bed",
   "size": [2.0, 1.5, 0.5],
-  "position": [0.0, 0.0, 0.0],
-  "attributes": ["furniture"],
-  "vertical_relation": {}
+  "position": [0.0, 0.0, 0.0]
 } 
