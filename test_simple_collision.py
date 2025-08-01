@@ -41,10 +41,10 @@ def main():
     map_rep = create_simple_test_map()
     
     print("\n1. 显示碰撞边缘（红色虚线）:")
-    plot_map(map_rep, show_collision_margin=True, figsize=(10, 8))
+    plot_map(map_rep, show_collision_margin=True, show_legend=False, figsize=(10, 8))
     
     print("\n2. 不显示碰撞边缘:")
-    plot_map(map_rep, show_collision_margin=False, figsize=(10, 8))
+    plot_map(map_rep, show_collision_margin=False, show_legend=False, figsize=(10, 8))
     
     print("\n演示完成！")
     print("说明:")

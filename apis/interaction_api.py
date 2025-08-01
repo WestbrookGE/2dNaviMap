@@ -48,9 +48,18 @@ def load_existing_map(map_file_path: str = "data/maps/complete_indoor_scene.json
     except Exception as e:
         raise Exception(f"加载地图失败: {e}")
 
-def add_object_from_file(map_rep: MapRepresentation, object_ref: str, object_dir: str = "data/objects", new_position: Tuple[float, float, float] = None):
+def add_object_from_file(map_rep: MapRepresentation, object_ref: str, new_position: Tuple[float, float, float] = (0.0, 0.0, 0.0), object_dir: str = "data/objects"):
     """
     通过引用物体名称或路径，自动加载物体配置文件并添加到地图，支持指定新位置。
+    
+    Args:
+        map_rep: 地图表示对象
+        object_ref: 物体引用（文件名或完整路径）
+        new_position: 物体位置 (x, y, z)，默认为 (0.0, 0.0, 0.0)
+        object_dir: 物体文件目录，默认为 "data/objects"
+        
+    Raises:
+        FileNotFoundError: 物体配置文件不存在
     """
     if os.path.isfile(object_ref):
         path = object_ref
@@ -58,17 +67,11 @@ def add_object_from_file(map_rep: MapRepresentation, object_ref: str, object_dir
         path = os.path.join(object_dir, f"{object_ref}.json")
     if not os.path.exists(path):
         raise FileNotFoundError(f"物体配置文件不存在: {path}")
+    
     obj = MapObject.load_from_json(path)
-    if new_position is not None:
-        obj.position = new_position
-        x, y, z = new_position
-        w, d, h = obj.size
-        obj.source_bbox_3d = (
-            x, y, z,
-            x + w, y + d, z + h
-        )
-        obj.source_centroid_3d = (x + w/2, y + d/2, z + h/2)
-        obj.bbox_2d = (x, y, x + w, y + d)
+    # 设置位置（使用默认值或指定值）
+    obj.position = new_position
+    
     # 保证id唯一，避免覆盖
     base_id = obj.id
     i = 1
@@ -109,7 +112,7 @@ def check_collision_with_grid(map_rep: MapRepresentation, map_object: MapObject,
     
     if map_rep.grid_map is None:
         return False
-    min_x, min_y, max_x, max_y = map_object.bbox_2d
+    min_x, min_y, max_x, max_y = map_object.get_bbox_2d()
     width, height = map_rep.canvas_size
     grid_h, grid_w = map_rep.grid_map.shape  # (行,列)=(y,x)
     for row in range(grid_h):
@@ -119,13 +122,12 @@ def check_collision_with_grid(map_rep: MapRepresentation, map_object: MapObject,
             if (min_x <= x <= max_x) and (min_y <= y <= max_y) and map_rep.grid_map[row, col] == 0:
                 # 找到重叠区域，判断高度
                 for obj in map_rep.objects.values():
-                    if hasattr(obj, 'bbox_2d'):
-                        omin_x, omin_y, omax_x, omax_y = obj.bbox_2d
-                        if (omin_x <= x <= omax_x) and (omin_y <= y <= omax_y):
-                            z_min1, z_max1 = map_object.source_bbox_3d[2], map_object.source_bbox_3d[5]
-                            z_min2, z_max2 = obj.source_bbox_3d[2], obj.source_bbox_3d[5]
-                            if not (z_max1 <= z_min2 or z_min1 >= z_max2):
-                                return True
+                    omin_x, omin_y, omax_x, omax_y = obj.get_bbox_2d()
+                    if (omin_x <= x <= omax_x) and (omin_y <= y <= omax_y):
+                        z_min1, z_max1 = map_object.get_bbox_3d()[2], map_object.get_bbox_3d()[5]
+                        z_min2, z_max2 = obj.get_bbox_3d()[2], obj.get_bbox_3d()[5]
+                        if not (z_max1 <= z_min2 or z_min1 >= z_max2):
+                            return True
     return False
 
 def update_grid_map_incremental(map_rep: MapRepresentation, map_object: MapObject, resolution: float = None):
@@ -140,7 +142,7 @@ def update_grid_map_incremental(map_rep: MapRepresentation, map_object: MapObjec
         map_rep.grid_map = generate_grid_map_from_objects(map_rep, resolution)
         return
         
-    min_x, min_y, max_x, max_y = map_object.bbox_2d
+    min_x, min_y, max_x, max_y = map_object.get_bbox_2d()
     grid_h, grid_w = map_rep.grid_map.shape
     for row in range(grid_h):
         for col in range(grid_w):
@@ -152,15 +154,27 @@ def update_grid_map_incremental(map_rep: MapRepresentation, map_object: MapObjec
 def update_grid_map_full(map_rep: MapRepresentation, resolution: float = None):
     """
     全量更新grid map，遍历所有物体。
+    使用0.01精度，并自动保存为PNG文件。
     """
     if resolution is None:
-        resolution = config.get_default_resolution()
+        resolution = config.get_default_resolution()  # 现在默认是0.01
     
     map_rep.grid_map = generate_grid_map_from_objects(map_rep, resolution)
 
-def add_object_with_collision_check(map_rep: MapRepresentation, object_ref: str, object_dir: str = "data/objects", new_position: Tuple[float, float, float] = None, resolution: float = None):
+def add_object_with_collision_check(map_rep: MapRepresentation, object_ref: str, new_position: Tuple[float, float, float] = (0.0, 0.0, 0.0), object_dir: str = "data/objects", resolution: float = None):
     """
-    通过文件引用添加物体，添加前做碰撞检测，成功后增量更新grid map。
+    通过文件引用添加物体，添加前做碰撞检测，成功后增量更新grid map，支持指定位置。
+    
+    Args:
+        map_rep: 地图表示对象
+        object_ref: 物体引用（文件名或完整路径）
+        new_position: 物体位置 (x, y, z)，默认为 (0.0, 0.0, 0.0)
+        object_dir: 物体文件目录，默认为 "data/objects"
+        resolution: 栅格地图分辨率，默认为配置中的默认值
+        
+    Raises:
+        FileNotFoundError: 物体配置文件不存在
+        ValueError: 发生碰撞
     """
     if resolution is None:
         resolution = config.get_default_resolution()
@@ -172,17 +186,11 @@ def add_object_with_collision_check(map_rep: MapRepresentation, object_ref: str,
         path = os.path.join(object_dir, f"{object_ref}.json")
     if not os.path.exists(path):
         raise FileNotFoundError(f"物体配置文件不存在: {path}")
+    
     obj = MapObject.load_from_json(path)
-    if new_position is not None:
-        obj.position = new_position
-        x, y, z = new_position
-        w, d, h = obj.size
-        obj.source_bbox_3d = (
-            x, y, z,
-            x + w, y + d, z + h
-        )
-        obj.source_centroid_3d = (x + w/2, y + d/2, z + h/2)
-        obj.bbox_2d = (x, y, x + w, y + d)
+    # 设置位置（使用默认值或指定值）
+    obj.position = new_position
+    
     # 保证id唯一，避免覆盖
     base_id = obj.id
     i = 1
@@ -191,9 +199,11 @@ def add_object_with_collision_check(map_rep: MapRepresentation, object_ref: str,
         i += 1
         new_id = f"{base_id}_{i}"
     obj.id = new_id
+    
     # 碰撞检测
     if check_collision_with_grid(map_rep, obj, resolution):
         raise ValueError("物体与现有物体发生不可叠加的碰撞，添加失败！")
+    
     # 添加物体
     map_rep.objects[new_id] = obj
     # 增量更新grid map
@@ -241,7 +251,7 @@ def check_wall_collision_with_furniture(map_rep: MapRepresentation, wall_object:
     if map_rep.grid_map is None:
         return False
     
-    min_x, min_y, max_x, max_y = wall_object.bbox_2d
+    min_x, min_y, max_x, max_y = wall_object.get_bbox_2d()
     width, height = map_rep.canvas_size
     grid_h, grid_w = map_rep.grid_map.shape  # (行,列)=(y,x)
     
@@ -256,14 +266,13 @@ def check_wall_collision_with_furniture(map_rep: MapRepresentation, wall_object:
                     if obj.label == "wall":
                         continue
                     
-                    if hasattr(obj, 'bbox_2d'):
-                        omin_x, omin_y, omax_x, omax_y = obj.bbox_2d
-                        if (omin_x <= x <= omax_x) and (omin_y <= y <= omax_y):
-                            # 检查高度重叠
-                            z_min1, z_max1 = wall_object.source_bbox_3d[2], wall_object.source_bbox_3d[5]
-                            z_min2, z_max2 = obj.source_bbox_3d[2], obj.source_bbox_3d[5]
-                            if not (z_max1 <= z_min2 or z_min1 >= z_max2):
-                                return True
+                    omin_x, omin_y, omax_x, omax_y = obj.get_bbox_2d()
+                    if (omin_x <= x <= omax_x) and (omin_y <= y <= omax_y):
+                        # 检查高度重叠
+                        z_min1, z_max1 = wall_object.get_bbox_3d()[2], wall_object.get_bbox_3d()[5]
+                        z_min2, z_max2 = obj.get_bbox_3d()[2], obj.get_bbox_3d()[5]
+                        if not (z_max1 <= z_min2 or z_min1 >= z_max2):
+                            return True
     return False
 
 

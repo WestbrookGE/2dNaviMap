@@ -3,6 +3,8 @@ from enum import Enum
 import numpy as np
 import json
 import os
+from utils.config import config
+from utils.grid_map_storage import GridMapStorage
 
 class SourceType(Enum):
     GAUSSIAN_SPLATTING = "GAUSSIAN_SPLATTING"
@@ -22,14 +24,24 @@ class MapObject:
         self.position = position
         # 如果没有提供id，使用label_0格式
         self.id = id or f"{label}_0"
-        x, y, z = position
-        w, d, h = size
-        self.source_bbox_3d = (
-            x, y, z,  # min_x, min_y, min_z
-            x + w, y + d, z + h   # max_x, max_y, max_z
-        )
-        self.source_centroid_3d = (x + w/2, y + d/2, z + h/2)
-        self.bbox_2d = (x, y, x + w, y + d)  # 新增2D bbox
+
+    def get_bbox_3d(self) -> Tuple[float, float, float, float, float, float]:
+        """获取3D边界框 (min_x, min_y, min_z, max_x, max_y, max_z)"""
+        x, y, z = self.position
+        w, d, h = self.size
+        return (x, y, z, x + w, y + d, z + h)
+
+    def get_centroid_3d(self) -> Tuple[float, float, float]:
+        """获取3D质心坐标"""
+        x, y, z = self.position
+        w, d, h = self.size
+        return (x + w/2, y + d/2, z + h/2)
+
+    def get_bbox_2d(self) -> Tuple[float, float, float, float]:
+        """获取2D边界框 (min_x, min_y, max_x, max_y)"""
+        x, y, z = self.position
+        w, d, h = self.size
+        return (x, y, x + w, y + d)
 
     def to_dict(self) -> dict:
         return {
@@ -37,23 +49,16 @@ class MapObject:
             "size": self.size,
             "position": self.position,
             "id": self.id,
-            "source_bbox_3d": self.source_bbox_3d,
-            "source_centroid_3d": self.source_centroid_3d,
-            "bbox_2d": self.bbox_2d,
         }
 
     @staticmethod
     def from_dict(data: dict) -> "MapObject":
-        obj = MapObject(
+        return MapObject(
             label=data["label"],
             size=tuple(data["size"]),
             position=tuple(data.get("position", (0.0, 0.0, 0.0))),
             id=data.get("id"),
         )
-        # 兼容老数据
-        if "bbox_2d" in data:
-            obj.bbox_2d = tuple(data["bbox_2d"])
-        return obj
 
     @staticmethod
     def load_from_json(path: str) -> "MapObject":
@@ -73,9 +78,12 @@ class AgentState:
         self.size = size
         self.position = position
         self.orientation = orientation
-        x, y = position
-        w, d = size
-        self.bbox_2d = (x, y, x + w, y + d)
+
+    def get_bbox_2d(self) -> Tuple[float, float, float, float]:
+        """获取2D边界框 (min_x, min_y, max_x, max_y)"""
+        x, y = self.position
+        w, d = self.size
+        return (x, y, x + w, y + d)
 
     def to_dict(self) -> dict:
         return {
@@ -83,20 +91,16 @@ class AgentState:
             "size": self.size,
             "position": self.position,
             "orientation": self.orientation,
-            "bbox_2d": self.bbox_2d,
         }
 
     @staticmethod
     def from_dict(data: dict) -> "AgentState":
-        obj = AgentState(
+        return AgentState(
             agent_id=data["agent_id"],
             size=tuple(data["size"]),
             position=tuple(data["position"]),
             orientation=data["orientation"],
         )
-        if "bbox_2d" in data:
-            obj.bbox_2d = tuple(data["bbox_2d"])
-        return obj
 
     @staticmethod
     def load_from_json(path: str) -> "AgentState":
@@ -122,11 +126,11 @@ class MapRepresentation:
         self.canvas_size = canvas_size  # 新增
 
     def to_dict(self) -> dict:
+        """转换为字典，不包含grid_map数据"""
         return {
             "map_id": self.map_id,
             "source_type": self.source_type.value,
             "objects": {k: v.to_dict() for k, v in self.objects.items()},
-            "grid_map": self.grid_map.tolist() if self.grid_map is not None else None,
             "scene_description": self.scene_description,
             "canvas_size": self.canvas_size,  # 新增
         }
@@ -134,12 +138,11 @@ class MapRepresentation:
     @staticmethod
     def from_dict(data: dict) -> "MapRepresentation":
         objects = {k: MapObject.from_dict(v) for k, v in data["objects"].items()}
-        grid_map = np.array(data["grid_map"]) if data.get("grid_map") is not None else None
         return MapRepresentation(
             map_id=data["map_id"],
             source_type=SourceType(data["source_type"]),
             objects=objects,
-            grid_map=grid_map,
+            grid_map=None,  # grid_map现在通过PNG文件管理
             scene_description=data.get("scene_description", ""),
             canvas_size=tuple(data["canvas_size"]) if data.get("canvas_size") is not None else None,  # 新增
         )
@@ -148,7 +151,17 @@ class MapRepresentation:
     def load_from_json(path: str) -> "MapRepresentation":
         with open(path, "r", encoding="utf-8") as f:
             data = json.load(f)
-        return MapRepresentation.from_dict(data)
+        map_rep = MapRepresentation.from_dict(data)
+        
+        # 尝试从PNG文件加载grid_map
+        if map_rep.canvas_size is not None:
+            resolution = config.get_default_resolution()
+            grid_map = GridMapStorage.load_grid_map_from_png(
+                map_rep.map_id, map_rep.canvas_size, resolution
+            )
+            map_rep.grid_map = grid_map
+        
+        return map_rep
     
     def save_to_json(self, path: str) -> str:
         """
@@ -172,6 +185,75 @@ class MapRepresentation:
             json.dump(self.to_dict(), f, ensure_ascii=False, indent=2)
             
         return str(save_path.absolute())
+    
+    def save_grid_map_as_png(self) -> Optional[str]:
+        """
+        将grid_map保存为PNG文件
+        
+        Returns:
+            PNG文件路径，如果保存失败则返回None
+        """
+        if self.grid_map is None or self.canvas_size is None:
+            return None
+        
+        try:
+            resolution = config.get_default_resolution()
+            return GridMapStorage.save_grid_map_as_png(
+                self.grid_map, self.map_id, self.canvas_size, resolution
+            )
+        except Exception as e:
+            print(f"保存grid_map PNG文件失败: {e}")
+            return None
+    
+    def load_grid_map_from_png(self) -> bool:
+        """
+        从PNG文件加载grid_map
+        
+        Returns:
+            是否成功加载
+        """
+        if self.canvas_size is None:
+            return False
+        
+        try:
+            resolution = config.get_default_resolution()
+            grid_map = GridMapStorage.load_grid_map_from_png(
+                self.map_id, self.canvas_size, resolution
+            )
+            if grid_map is not None:
+                self.grid_map = grid_map
+                return True
+            return False
+        except Exception as e:
+            print(f"加载grid_map PNG文件失败: {e}")
+            return False
+    
+    def get_grid_map_path(self) -> str:
+        """
+        获取grid_map PNG文件路径
+        
+        Returns:
+            PNG文件路径
+        """
+        return GridMapStorage.get_grid_map_path(self.map_id)
+    
+    def grid_map_exists(self) -> bool:
+        """
+        检查grid_map PNG文件是否存在
+        
+        Returns:
+            文件是否存在
+        """
+        return GridMapStorage.grid_map_exists(self.map_id)
+    
+    def delete_grid_map(self) -> bool:
+        """
+        删除grid_map PNG文件
+        
+        Returns:
+            是否成功删除
+        """
+        return GridMapStorage.delete_grid_map(self.map_id)
 
 class Path:
     def __init__(self, points: List[Tuple[float, float]]):

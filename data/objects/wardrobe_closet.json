@@ -1,5 +1,8 @@
 {
   "label": "wardrobe_closet",
-  "size": [1.2, 0.6, 2.0],
-  "position": [0.0, 0.0, 0.0]
-} 
+  "size": [
+    1.2,
+    0.6,
+    2.0
+  ]
+}

@@ -141,7 +141,7 @@ if not USE_EXISTING_MAP:
     # 添加家具到地图
     for obj_name, pos in all_objects.items():
         try:
-            add_object_with_collision_check(map_rep, obj_name, object_dir=os.path.join("data", "objects"), new_position=pos, resolution=resolution)
+            add_object_with_collision_check(map_rep, obj_name, new_position=pos, object_dir=os.path.join("data", "objects"), resolution=resolution)
             print(f"成功添加 {obj_name} 到位置 {pos}")
         except Exception as e:
             print(f"添加 {obj_name} 失败: {e}")
@@ -160,7 +160,7 @@ if not USE_EXISTING_MAP:
     print("- 卧室↔卫生间: (12.0, 5.5)")
 
     # 可视化墙体布局
-    plot_map(map_rep, show_grid=False, figsize=(15, 12))
+    plot_map(map_rep, show_grid=False, show_legend=False, figsize=(15, 12))
 
 # ========== A*路径规划测试 ===========
 print("\n=== A*路径规划测试 ===")
@@ -214,7 +214,7 @@ else:
 
 # 可视化最终结果
 print("\n=== 最终路径规划结果 ===")
-plot_map(map_rep, show_grid=True, figsize=(15, 12))
+    plot_map(map_rep, show_grid=True, show_legend=False, figsize=(15, 12))
 
 # ========== 保存地图到文件 ===========
 print("\n=== 保存地图 ===")

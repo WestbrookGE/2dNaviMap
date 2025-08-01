@@ -54,12 +54,12 @@ def test_collision_visualization():
     print("绘制地图（显示碰撞边缘）...")
     
     # 绘制带碰撞边缘的地图
-    plot_map(map_rep, show_collision_margin=True, figsize=(12, 10))
+    plot_map(map_rep, show_collision_margin=True, show_legend=False, figsize=(12, 10))
     
     print("绘制地图（不显示碰撞边缘）...")
     
     # 绘制不带碰撞边缘的地图作为对比
-    plot_map(map_rep, show_collision_margin=False, figsize=(12, 10))
+    plot_map(map_rep, show_collision_margin=False, show_legend=False, figsize=(12, 10))
 
 def test_with_json_map():
     """使用JSON地图文件测试"""

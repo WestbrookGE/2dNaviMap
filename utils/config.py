@@ -34,8 +34,10 @@ class Config:
         """获取默认配置"""
         return {
             'grid_map': {
-                'resolution': 0.1,
-                'default_resolution': 1.0
+                'resolution': 0.01,
+                'default_resolution': 0.01,
+                'png_storage': True,
+                'png_directory': 'data/grid_maps'
             },
             'collision': {
                 'margin': 0.3,
@@ -74,11 +76,19 @@ class Config:
     
     def get_grid_resolution(self) -> float:
         """获取网格分辨率"""
-        return self.get('grid_map.resolution', 0.1)
+        return self.get('grid_map.resolution', 0.01)
     
     def get_default_resolution(self) -> float:
         """获取默认分辨率"""
-        return self.get('grid_map.default_resolution', 1.0)
+        return self.get('grid_map.default_resolution', 0.01)
+    
+    def get_png_storage_enabled(self) -> bool:
+        """获取是否启用PNG存储"""
+        return self.get('grid_map.png_storage', True)
+    
+    def get_png_directory(self) -> str:
+        """获取PNG存储目录"""
+        return self.get('grid_map.png_directory', 'data/grid_maps')
     
     def get_collision_margin(self) -> float:
         """获取碰撞边缘距离"""

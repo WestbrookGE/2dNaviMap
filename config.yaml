@@ -2,8 +2,10 @@
 
 # 网格地图配置
 grid_map:
-  resolution: 0.1  # 网格分辨率（米/格子）
-  default_resolution: 1.0  # 默认分辨率
+  resolution: 0.01  # 网格分辨率（米/格子）
+  default_resolution: 0.01  # 默认分辨率
+  png_storage: true  # 使用PNG格式存储grid_map
+  png_directory: "data/grid_maps"  # PNG文件存储目录
 
 # 碰撞检测配置
 collision:

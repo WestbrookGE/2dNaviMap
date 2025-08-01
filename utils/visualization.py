@@ -27,7 +27,7 @@ def expand_bbox_for_collision(bbox_2d: Tuple[float, float, float, float],
             max_x + collision_margin, max_y + collision_margin)
 
 def plot_map(map_rep: MapRepresentation, agent_state: AgentState = None, show_grid: bool = True, 
-             figsize=(8, 8), save_path: str = None, show_collision_margin: bool = True):
+             figsize=(8, 8), save_path: str = None, show_collision_margin: bool = True, show_legend: bool = False):
     """
     绘制地图、物体轮廓、机器人位置与朝向。
     :param show_collision_margin: 是否显示碰撞边缘
@@ -59,26 +59,28 @@ def plot_map(map_rep: MapRepresentation, agent_state: AgentState = None, show_gr
             # 绘制轨迹线
             pts = np.array(obj.footprint_2d)
             if len(pts) > 1:
-                ax.plot(pts[:,0], pts[:,1], '-o', label=obj.label+":"+obj.id)
-        elif hasattr(obj, 'bbox_2d'):
-            min_x, min_y, max_x, max_y = obj.bbox_2d
+                label = obj.label+":"+obj.id if show_legend else ""
+                ax.plot(pts[:,0], pts[:,1], '-o', label=label)
+        else:
+            min_x, min_y, max_x, max_y = obj.get_bbox_2d()
             
             # 根据物体类型设置不同的颜色和样式
+            label = obj.label+":"+obj.id if show_legend else ""
             if obj.label == "wall":
                 # 墙体：深灰色，实线边框
                 rect = plt.Rectangle((min_x, min_y), max_x - min_x, max_y - min_y, 
                                    facecolor='darkgray', edgecolor='black', 
-                                   linewidth=2, alpha=0.8, label=obj.label+":"+obj.id)
+                                   linewidth=2, alpha=0.8, label=label)
             elif obj.label == "door":
                 # 门：棕色，虚线边框
                 rect = plt.Rectangle((min_x, min_y), max_x - min_x, max_y - min_y, 
                                    facecolor='brown', edgecolor='darkred', 
-                                   linewidth=2, linestyle='--', alpha=0.7, label=obj.label+":"+obj.id)
+                                   linewidth=2, linestyle='--', alpha=0.7, label=label)
             else:
                 # 家具：浅色，细边框
                 rect = plt.Rectangle((min_x, min_y), max_x - min_x, max_y - min_y, 
                                    facecolor='lightblue', edgecolor='blue', 
-                                   linewidth=1, alpha=0.4, label=obj.label+":"+obj.id)
+                                   linewidth=1, alpha=0.4, label=label)
             
             ax.add_patch(rect)
             centroid = ((min_x + max_x) / 2, (min_y + max_y) / 2)
@@ -99,7 +101,7 @@ def plot_map(map_rep: MapRepresentation, agent_state: AgentState = None, show_gr
             
             # 绘制碰撞边缘
             if show_collision_margin:
-                collision_bbox = expand_bbox_for_collision(obj.bbox_2d)
+                collision_bbox = expand_bbox_for_collision(obj.get_bbox_2d())
                 c_min_x, c_min_y, c_max_x, c_max_y = collision_bbox
                 
                 # 碰撞边缘：红色虚线边框，半透明
@@ -110,9 +112,10 @@ def plot_map(map_rep: MapRepresentation, agent_state: AgentState = None, show_gr
                 ax.add_patch(collision_rect)
 
     # 3. 绘制机器人本体
-    if agent_state is not None and hasattr(agent_state, 'bbox_2d'):
-        min_x, min_y, max_x, max_y = agent_state.bbox_2d
-        rect = plt.Rectangle((min_x, min_y), max_x - min_x, max_y - min_y, color='blue', alpha=0.5, label='Agent')
+    if agent_state is not None:
+        min_x, min_y, max_x, max_y = agent_state.get_bbox_2d()
+        agent_label = 'Agent' if show_legend else ""
+        rect = plt.Rectangle((min_x, min_y), max_x - min_x, max_y - min_y, color='blue', alpha=0.5, label=agent_label)
         ax.add_patch(rect)
         centroid = ((min_x + max_x) / 2, (min_y + max_y) / 2)
         ax.plot(centroid[0], centroid[1], 'ro', markersize=8)
@@ -123,7 +126,7 @@ def plot_map(map_rep: MapRepresentation, agent_state: AgentState = None, show_gr
         
         # 绘制机器人的碰撞边缘
         if show_collision_margin:
-            collision_bbox = expand_bbox_for_collision(agent_state.bbox_2d)
+            collision_bbox = expand_bbox_for_collision(agent_state.get_bbox_2d())
             c_min_x, c_min_y, c_max_x, c_max_y = collision_bbox
             
             # 机器人的碰撞边缘：蓝色虚线边框
@@ -140,7 +143,8 @@ def plot_map(map_rep: MapRepresentation, agent_state: AgentState = None, show_gr
     if show_collision_margin:
         title += f" (碰撞边缘: {config.get_collision_margin()}m)"
     ax.set_title(title)
-    ax.legend(fontsize=7, loc='best')
+    if show_legend:
+        ax.legend(fontsize=7, loc='best')
     plt.tight_layout()
     if save_path:
         plt.savefig(save_path)
